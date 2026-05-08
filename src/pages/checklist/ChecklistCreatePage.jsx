@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { checklistService } from '@/services/checklistService'
 import { vehicleService } from '@/services/vehicleService'
@@ -58,7 +58,7 @@ const statusOptions = [
   },
   { 
     value: 'needs_repair', 
-    label: 'Precisa Reparo', 
+    label: 'Reparo', 
     icon: XCircle, 
     color: 'bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/20',
     activeColor: 'bg-red-500 text-white border-red-500 shadow-lg'
@@ -68,6 +68,7 @@ const statusOptions = [
 export default function ChecklistCreatePage() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
+  const queryClient = useQueryClient()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -112,50 +113,63 @@ export default function ChecklistCreatePage() {
   }
 
   const handleSubmit = async (e) => {
-  e.preventDefault()
-  setError('')
-  setLoading(true)
+    e.preventDefault()
+    setError('')
+    setLoading(true)
 
-  try {
-    if (!vehicleId) throw new Error('Selecione um veículo')
-    const overallStatus = calculateOverallStatus()
+    try {
+      if (!vehicleId) {
+        throw new Error('Selecione um veículo para realizar o checklist')
+      }
 
-    const { error: submitError } = await checklistService.createChecklist(
-      { company_id: profile.company.id, vehicle_id: vehicleId, created_by: user.id, observations, general_status: overallStatus },
-      items
-    )
+      const overallStatus = calculateOverallStatus()
 
-    if (submitError) throw submitError
+      const { error: submitError } = await checklistService.createChecklist(
+        {
+          company_id: profile.company.id,
+          vehicle_id: vehicleId,
+          created_by: user.id,
+          observations,
+          general_status: overallStatus,
+        },
+        items
+      )
 
-    // INVALIDAR TODOS OS CACHES
-    queryClient.invalidateQueries({ queryKey: ['checklists'] })
-    queryClient.invalidateQueries({ queryKey: ['vehicles'] })
-    queryClient.invalidateQueries({ queryKey: ['vehicleStats'] })
-    queryClient.invalidateQueries({ queryKey: ['maintenance'] })
-    queryClient.invalidateQueries({ queryKey: ['maintenanceStats'] })
+      if (submitError) throw submitError
 
-    setSuccess(true)
-    setTimeout(() => navigate('/checklist'), 2000)
-  } catch (err) {
-    setError(err.message || 'Erro ao salvar checklist')
-  } finally {
-    setLoading(false)
+      // Invalidar TODOS os caches relacionados
+      queryClient.invalidateQueries({ queryKey: ['checklists'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicleStats'] })
+      queryClient.invalidateQueries({ queryKey: ['maintenance'] })
+      queryClient.invalidateQueries({ queryKey: ['maintenanceStats'] })
+
+      setSuccess(true)
+      
+      setTimeout(() => {
+        navigate('/checklist')
+      }, 2000)
+    } catch (err) {
+      setError(err.message || 'Erro ao salvar checklist')
+    } finally {
+      setLoading(false)
+    }
   }
-}
 
   const okCount = items.filter(i => i.status === 'ok').length
   const attentionCount = items.filter(i => i.status === 'attention').length
   const repairCount = items.filter(i => i.status === 'needs_repair').length
 
+  // Tela de sucesso
   if (success) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Card className="max-w-md text-center p-8">
+        <Card className="max-w-md text-center p-8 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
             Checklist Salvo!
           </h2>
-          <p className="text-gray-500 mb-4">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
             {repairCount > 0 
               ? `${repairCount} ordem(ns) de manutenção foi(ram) criada(s) automaticamente.` 
               : 'Tudo OK com o veículo!'}
@@ -200,7 +214,7 @@ export default function ChecklistCreatePage() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Car className="w-5 h-5 text-fleet-500" />
-                <Label className="text-base">Veículo *</Label>
+                <Label className="text-base text-gray-900 dark:text-gray-100">Veículo *</Label>
               </div>
               <Select value={vehicleId} onValueChange={setVehicleId}>
                 <SelectTrigger className="h-12 text-base">
@@ -265,7 +279,7 @@ export default function ChecklistCreatePage() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <ClipboardCheck className="w-5 h-5 text-fleet-500" />
-                <Label className="text-base">Itens de Inspeção</Label>
+                <Label className="text-base text-gray-900 dark:text-gray-100">Itens de Inspeção</Label>
               </div>
 
               <div className="space-y-2">
@@ -288,9 +302,9 @@ export default function ChecklistCreatePage() {
                           : ''
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-3">
-                          <ItemIcon className={`w-5 h-5 ${
+                          <ItemIcon className={`w-5 h-5 flex-shrink-0 ${
                             item.status === 'needs_repair' ? 'text-red-500' :
                             item.status === 'attention' ? 'text-yellow-500' :
                             'text-gray-500'
@@ -305,14 +319,14 @@ export default function ChecklistCreatePage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           {statusOptions.map((status) => (
                             <button
                               key={status.value}
                               type="button"
                               onClick={() => vehicleId && updateItemStatus(index, status.value)}
                               disabled={!vehicleId}
-                              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                              className={`px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all ${
                                 item.status === status.value
                                   ? status.activeColor
                                   : status.color
@@ -368,13 +382,13 @@ export default function ChecklistCreatePage() {
 
             {/* Observações gerais */}
             <div className="space-y-2">
-              <Label className="text-sm">Observações Gerais</Label>
+              <Label className="text-sm text-gray-900 dark:text-gray-100">Observações Gerais</Label>
               <textarea
                 value={observations}
                 onChange={(e) => setObservations(e.target.value)}
                 rows={3}
                 disabled={!vehicleId}
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 disabled:opacity-50"
                 placeholder="Adicione observações sobre a inspeção geral..."
               />
             </div>
