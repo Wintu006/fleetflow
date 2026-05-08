@@ -28,13 +28,10 @@ export default function VehiclesListPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-
-  // Estado do modal de edição
   const [editingVehicle, setEditingVehicle] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [editError, setEditError] = useState('')
 
-  // Buscar veículos
   const { data: vehicles = [], isLoading } = useQuery({
     queryKey: ['vehicles', profile?.company?.id],
     queryFn: async () => {
@@ -44,7 +41,6 @@ export default function VehiclesListPage() {
     enabled: !!profile?.company?.id,
   })
 
-  // Mutation para atualizar
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       const { error } = await vehicleService.updateVehicle(id, data)
@@ -52,6 +48,7 @@ export default function VehiclesListPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicleStats'] })
       setEditingVehicle(null)
     },
     onError: (err) => {
@@ -59,7 +56,6 @@ export default function VehiclesListPage() {
     },
   })
 
-  // Mutation para excluir permanentemente
   const deleteMutation = useMutation({
     mutationFn: async (id) => {
       const { error } = await vehicleService.permanentlyDelete(id)
@@ -67,6 +63,7 @@ export default function VehiclesListPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicleStats'] })
       setEditingVehicle(null)
     },
     onError: (err) => {
@@ -74,7 +71,6 @@ export default function VehiclesListPage() {
     },
   })
 
-  // Filtrar veículos
   const filteredVehicles = vehicles.filter(v => {
     const matchesSearch = !search ||
       v.plate.toLowerCase().includes(search.toLowerCase()) ||
@@ -84,7 +80,6 @@ export default function VehiclesListPage() {
     return matchesSearch && matchesStatus
   })
 
-  // Abrir modal de edição
   const openEditModal = (vehicle) => {
     setEditingVehicle(vehicle)
     setEditForm({
@@ -101,7 +96,6 @@ export default function VehiclesListPage() {
     setEditError('')
   }
 
-  // Fechar modal
   const closeEditModal = () => {
     if (!updateMutation.isPending && !deleteMutation.isPending) {
       setEditingVehicle(null)
@@ -109,14 +103,12 @@ export default function VehiclesListPage() {
     }
   }
 
-  // Salvar edição
   const handleSaveEdit = (e) => {
     e.preventDefault()
     setEditError('')
     updateMutation.mutate({ id: editingVehicle.id, data: editForm })
   }
 
-  // Atualizar campo do formulário
   const handleEditChange = (e) => {
     const { name, value } = e.target
     setEditForm({
@@ -125,7 +117,6 @@ export default function VehiclesListPage() {
     })
   }
 
-  // Confirmar exclusão
   const handleDelete = () => {
     if (window.confirm(
       '⚠️ ATENÇÃO: Esta ação é irreversível!\n\n' +
@@ -151,7 +142,6 @@ export default function VehiclesListPage() {
         }
       />
 
-      {/* Filtros */}
       <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 mb-6">
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -179,7 +169,6 @@ export default function VehiclesListPage() {
         </CardContent>
       </Card>
 
-      {/* Tabela de veículos */}
       <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
         <CardContent className="p-0">
           {isLoading ? (
@@ -196,69 +185,32 @@ export default function VehiclesListPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      Placa
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      Marca/Modelo
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
-                      Ano
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">
-                      Km
-                    </th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">
-                      Ações
-                    </th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Placa</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Marca/Modelo</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase hidden md:table-cell">Ano</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase hidden md:table-cell">Km</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Status</th>
+                    <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredVehicles.map((vehicle) => (
-                    <tr
-                      key={vehicle.id}
-                      className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
-                    >
+                    <tr key={vehicle.id} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
                       <td className="py-3 px-4">
-                        <span className="font-mono font-semibold text-sm text-fleet-600 dark:text-fleet-400">
-                          {vehicle.plate}
-                        </span>
+                        <span className="font-mono font-semibold text-sm text-fleet-600 dark:text-fleet-400">{vehicle.plate}</span>
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                          {vehicle.brand} {vehicle.model}
-                        </p>
+                        <p className="font-medium text-sm text-gray-900 dark:text-gray-100">{vehicle.brand} {vehicle.model}</p>
                       </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
-                        {vehicle.year}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">
-                        {formatMileage(vehicle.mileage)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <StatusBadge status={vehicle.status} />
-                      </td>
+                      <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">{vehicle.year}</td>
+                      <td className="py-3 px-4 text-sm text-gray-600 dark:text-gray-400 hidden md:table-cell">{formatMileage(vehicle.mileage)}</td>
+                      <td className="py-3 px-4"><StatusBadge status={vehicle.status} /></td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                            title="Ver detalhes"
-                            className="h-8 w-8 text-gray-500 hover:text-fleet-500"
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/vehicles/${vehicle.id}`)} title="Ver detalhes" className="h-8 w-8 text-gray-500 hover:text-fleet-500">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditModal(vehicle)}
-                            title="Editar"
-                            className="h-8 w-8 text-gray-500 hover:text-fleet-500"
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => openEditModal(vehicle)} title="Editar" className="h-8 w-8 text-gray-500 hover:text-fleet-500">
                             <Pencil className="h-4 w-4" />
                           </Button>
                         </div>
@@ -272,85 +224,28 @@ export default function VehiclesListPage() {
         </CardContent>
       </Card>
 
-      {/* Modal de Edição */}
       <Dialog open={!!editingVehicle} onOpenChange={closeEditModal}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl">Editar Veículo</DialogTitle>
-            <DialogDescription>
-              {editingVehicle?.brand} {editingVehicle?.model} - {editingVehicle?.plate}
-            </DialogDescription>
+            <DialogDescription>{editingVehicle?.brand} {editingVehicle?.model} - {editingVehicle?.plate}</DialogDescription>
           </DialogHeader>
 
           {editError && (
-            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-              {editError}
-            </div>
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{editError}</div>
           )}
 
           <form onSubmit={handleSaveEdit} className="space-y-4 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Placa *</Label>
-                <Input
-                  name="plate"
-                  value={editForm.plate}
-                  onChange={handleEditChange}
-                  className="uppercase font-mono"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Marca *</Label>
-                <Input
-                  name="brand"
-                  value={editForm.brand}
-                  onChange={handleEditChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Modelo *</Label>
-                <Input
-                  name="model"
-                  value={editForm.model}
-                  onChange={handleEditChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Ano *</Label>
-                <Input
-                  name="year"
-                  type="number"
-                  value={editForm.year}
-                  onChange={handleEditChange}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Cor</Label>
-                <Input
-                  name="color"
-                  value={editForm.color}
-                  onChange={handleEditChange}
-                  placeholder="Ex: Prata"
-                />
-              </div>
-
+              <div className="space-y-2"><Label>Placa *</Label><Input name="plate" value={editForm.plate} onChange={handleEditChange} className="uppercase font-mono" required /></div>
+              <div className="space-y-2"><Label>Marca *</Label><Input name="brand" value={editForm.brand} onChange={handleEditChange} required /></div>
+              <div className="space-y-2"><Label>Modelo *</Label><Input name="model" value={editForm.model} onChange={handleEditChange} required /></div>
+              <div className="space-y-2"><Label>Ano *</Label><Input name="year" type="number" value={editForm.year} onChange={handleEditChange} required /></div>
+              <div className="space-y-2"><Label>Cor</Label><Input name="color" value={editForm.color} onChange={handleEditChange} placeholder="Ex: Prata" /></div>
               <div className="space-y-2">
                 <Label>Combustível *</Label>
-                <Select
-                  value={editForm.fuel_type}
-                  onValueChange={(value) => setEditForm({ ...editForm, fuel_type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={editForm.fuel_type} onValueChange={(value) => setEditForm({ ...editForm, fuel_type: value })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="gasoline">Gasolina</SelectItem>
                     <SelectItem value="diesel">Diesel</SelectItem>
@@ -360,27 +255,11 @@ export default function VehiclesListPage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label>Quilometragem *</Label>
-                <Input
-                  name="mileage"
-                  type="number"
-                  value={editForm.mileage}
-                  onChange={handleEditChange}
-                  required
-                />
-              </div>
-
+              <div className="space-y-2"><Label>Quilometragem *</Label><Input name="mileage" type="number" value={editForm.mileage} onChange={handleEditChange} required /></div>
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select
-                  value={editForm.status}
-                  onValueChange={(value) => setEditForm({ ...editForm, status: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">🟢 Ativo</SelectItem>
                     <SelectItem value="maintenance">🟡 Em Manutenção</SelectItem>
@@ -393,62 +272,21 @@ export default function VehiclesListPage() {
 
             <div className="space-y-2">
               <Label>Observações</Label>
-              <textarea
-                name="notes"
-                value={editForm.notes}
-                onChange={handleEditChange}
-                rows={2}
+              <textarea name="notes" value={editForm.notes} onChange={handleEditChange} rows={2}
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
-                placeholder="Notas sobre o veículo..."
-              />
+                placeholder="Notas sobre o veículo..." />
             </div>
 
             <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-800">
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={deleteMutation.isPending || updateMutation.isPending}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {deleteMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Excluindo...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Excluir Permanentemente
-                  </>
-                )}
+              <Button type="button" variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending || updateMutation.isPending}>
+                {deleteMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                Excluir
               </Button>
-
               <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={closeEditModal}
-                  disabled={updateMutation.isPending || deleteMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={updateMutation.isPending || deleteMutation.isPending}
-                  className="bg-fleet-500 hover:bg-fleet-600 text-white"
-                >
-                  {updateMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Salvar
-                    </>
-                  )}
+                <Button type="button" variant="outline" onClick={closeEditModal}>Cancelar</Button>
+                <Button type="submit" disabled={updateMutation.isPending} className="bg-fleet-500 hover:bg-fleet-600 text-white">
+                  {updateMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Salvar
                 </Button>
               </div>
             </div>

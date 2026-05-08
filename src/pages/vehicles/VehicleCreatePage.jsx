@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { vehicleService } from '@/services/vehicleService'
+import { supabase } from '@/services/supabaseClient'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,8 +15,9 @@ import { Loader2, AlertCircle } from 'lucide-react'
 export default function VehicleCreatePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { profile } = useAuth()
+  const { profile, user } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [formData, setFormData] = useState({
     plate: '',
@@ -26,42 +29,30 @@ export default function VehicleCreatePage() {
     status: 'active',
   })
 
+  const getCompanyId = async () => {
+    if (profile?.company?.id) return profile.company.id
+    if (user?.id) {
+      const { data: profileData } = await supabase.from('profiles').select('company_id').eq('user_id', user.id).single()
+      if (profileData?.company_id) return profileData.company_id
+    }
+    throw new Error('Empresa não encontrada')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
     try {
-      // Verificar se o perfil e company existem
-      if (!profile) {
-        throw new Error('Perfil não carregado. Faça login novamente.')
-      }
-      
-      if (!profile.company) {
-        throw new Error('Empresa não encontrada. Contate o suporte.')
-      }
-      
-      if (!profile.company.id) {
-        throw new Error('ID da empresa não encontrado.')
-      }
-
-      console.log('📤 Dados do veículo:', {
-        ...formData,
-        company_id: profile.company.id,
-      })
-
-      const { data, error } = await vehicleService.createVehicle({
-        ...formData,
-        company_id: profile.company.id,
-      })
-
+      const companyId = await getCompanyId()
+      const { error } = await vehicleService.createVehicle({ ...formData, company_id: companyId })
       if (error) throw error
 
-      console.log('✅ Veículo criado:', data)
-      alert('Veículo cadastrado com sucesso!')
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicleStats'] })
+
       navigate('/vehicles')
     } catch (err) {
-      console.error('❌ Erro ao cadastrar:', err)
       setError(err.message || 'Erro ao cadastrar veículo')
     } finally {
       setLoading(false)
@@ -70,20 +61,12 @@ export default function VehicleCreatePage() {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData({
-      ...formData,
-      [name]: name === 'year' || name === 'mileage' ? parseInt(value) || 0 : value,
-    })
+    setFormData({ ...formData, [name]: name === 'year' || name === 'mileage' ? parseInt(value) || 0 : value })
   }
 
   return (
     <div>
-      <PageHeader
-        title="Novo Veículo"
-        description="Cadastre um novo veículo na frota"
-        backButton
-      />
-
+      <PageHeader title="Novo Veículo" description="Cadastre um novo veículo na frota" backButton />
       <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
         <CardContent className="p-6">
           {error && (
@@ -92,79 +75,16 @@ export default function VehicleCreatePage() {
               <p className="text-red-400 text-sm">{error}</p>
             </div>
           )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Placa */}
+              <div className="space-y-2"><Label>Placa *</Label><Input name="plate" value={formData.plate} onChange={handleChange} placeholder="ABC1234" required disabled={loading} /></div>
+              <div className="space-y-2"><Label>Marca *</Label><Input name="brand" value={formData.brand} onChange={handleChange} placeholder="Ex: FIAT" required disabled={loading} /></div>
+              <div className="space-y-2"><Label>Modelo *</Label><Input name="model" value={formData.model} onChange={handleChange} placeholder="Ex: Uno" required disabled={loading} /></div>
+              <div className="space-y-2"><Label>Ano *</Label><Input name="year" type="number" value={formData.year} onChange={handleChange} required disabled={loading} /></div>
               <div className="space-y-2">
-                <Label htmlFor="plate">Placa *</Label>
-                <Input
-                  id="plate"
-                  name="plate"
-                  placeholder="ABC1234"
-                  value={formData.plate}
-                  onChange={handleChange}
-                  className="uppercase"
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              {/* Marca */}
-              <div className="space-y-2">
-                <Label htmlFor="brand">Marca *</Label>
-                <Input
-                  id="brand"
-                  name="brand"
-                  placeholder="Ex: FIAT, Toyota, Honda"
-                  value={formData.brand}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              {/* Modelo */}
-              <div className="space-y-2">
-                <Label htmlFor="model">Modelo *</Label>
-                <Input
-                  id="model"
-                  name="model"
-                  placeholder="Ex: Uno, Corolla, Civic"
-                  value={formData.model}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              {/* Ano */}
-              <div className="space-y-2">
-                <Label htmlFor="year">Ano *</Label>
-                <Input
-                  id="year"
-                  name="year"
-                  type="number"
-                  min="1900"
-                  max={new Date().getFullYear() + 1}
-                  value={formData.year}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              {/* Combustível */}
-              <div className="space-y-2">
-                <Label htmlFor="fuel_type">Combustível *</Label>
-                <Select
-                  value={formData.fuel_type}
-                  onValueChange={(value) => setFormData({ ...formData, fuel_type: value })}
-                  disabled={loading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o combustível" />
-                  </SelectTrigger>
+                <Label>Combustível *</Label>
+                <Select value={formData.fuel_type} onValueChange={(v) => setFormData({ ...formData, fuel_type: v })} disabled={loading}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="gasoline">Gasolina</SelectItem>
                     <SelectItem value="diesel">Diesel</SelectItem>
@@ -174,33 +94,11 @@ export default function VehicleCreatePage() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Quilometragem */}
+              <div className="space-y-2"><Label>Quilometragem *</Label><Input name="mileage" type="number" value={formData.mileage} onChange={handleChange} required disabled={loading} /></div>
               <div className="space-y-2">
-                <Label htmlFor="mileage">Quilometragem *</Label>
-                <Input
-                  id="mileage"
-                  name="mileage"
-                  type="number"
-                  min="0"
-                  value={formData.mileage}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              {/* Status */}
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value })}
-                  disabled={loading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
+                <Label>Status</Label>
+                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })} disabled={loading}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Ativo</SelectItem>
                     <SelectItem value="maintenance">Em Manutenção</SelectItem>
@@ -209,30 +107,10 @@ export default function VehicleCreatePage() {
                 </Select>
               </div>
             </div>
-
-            {/* Botões */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/vehicles')}
-                disabled={loading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-fleet-500 to-fleet-600 hover:from-fleet-600 hover:to-fleet-700 text-white"
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  'Salvar Veículo'
-                )}
+              <Button type="button" variant="outline" onClick={() => navigate('/vehicles')} disabled={loading}>Cancelar</Button>
+              <Button type="submit" disabled={loading} className="bg-fleet-500 hover:bg-fleet-600 text-white">
+                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Salvando...</> : 'Salvar Veículo'}
               </Button>
             </div>
           </form>

@@ -112,41 +112,36 @@ export default function ChecklistCreatePage() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+  e.preventDefault()
+  setError('')
+  setLoading(true)
 
-    try {
-      if (!vehicleId) {
-        throw new Error('Selecione um veículo para realizar o checklist')
-      }
+  try {
+    if (!vehicleId) throw new Error('Selecione um veículo')
+    const overallStatus = calculateOverallStatus()
 
-      const overallStatus = calculateOverallStatus()
+    const { error: submitError } = await checklistService.createChecklist(
+      { company_id: profile.company.id, vehicle_id: vehicleId, created_by: user.id, observations, general_status: overallStatus },
+      items
+    )
 
-      const { error: submitError } = await checklistService.createChecklist(
-        {
-          company_id: profile.company.id,
-          vehicle_id: vehicleId,
-          created_by: user.id,
-          observations,
-          general_status: overallStatus,
-        },
-        items
-      )
+    if (submitError) throw submitError
 
-      if (submitError) throw submitError
+    // INVALIDAR TODOS OS CACHES
+    queryClient.invalidateQueries({ queryKey: ['checklists'] })
+    queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+    queryClient.invalidateQueries({ queryKey: ['vehicleStats'] })
+    queryClient.invalidateQueries({ queryKey: ['maintenance'] })
+    queryClient.invalidateQueries({ queryKey: ['maintenanceStats'] })
 
-      setSuccess(true)
-      
-      setTimeout(() => {
-        navigate('/checklist')
-      }, 2000)
-    } catch (err) {
-      setError(err.message || 'Erro ao salvar checklist')
-    } finally {
-      setLoading(false)
-    }
+    setSuccess(true)
+    setTimeout(() => navigate('/checklist'), 2000)
+  } catch (err) {
+    setError(err.message || 'Erro ao salvar checklist')
+  } finally {
+    setLoading(false)
   }
+}
 
   const okCount = items.filter(i => i.status === 'ok').length
   const attentionCount = items.filter(i => i.status === 'attention').length
