@@ -1,9 +1,9 @@
 import { supabase } from './supabaseClient'
 
 export const checklistService = {
+  // Buscar todos os checklists
   async getChecklists(companyId, filters = {}) {
     try {
-      // Buscar checklists
       const { data: checklists, error } = await supabase
         .from('checklists')
         .select(`
@@ -15,7 +15,6 @@ export const checklistService = {
 
       if (error) throw error
 
-      // Buscar itens para cada checklist
       const checklistsWithItems = await Promise.all(
         (checklists || []).map(async (checklist) => {
           const { data: items } = await supabase
@@ -24,7 +23,6 @@ export const checklistService = {
             .eq('checklist_id', checklist.id)
             .order('created_at', { ascending: true })
 
-          // Buscar nome do usuário
           const { data: userData } = await supabase
             .rpc('get_user_name', { user_id: checklist.created_by })
 
@@ -43,14 +41,12 @@ export const checklistService = {
     }
   },
 
+  // Buscar um checklist específico
   async getChecklist(id) {
     try {
       const { data: checklist, error } = await supabase
         .from('checklists')
-        .select(`
-          *,
-          vehicle:vehicles(*)
-        `)
+        .select(`*, vehicle:vehicles(*)`)
         .eq('id', id)
         .single()
 
@@ -62,7 +58,6 @@ export const checklistService = {
         .eq('checklist_id', id)
         .order('created_at', { ascending: true })
 
-      // Buscar nome do usuário
       const { data: userData } = await supabase
         .rpc('get_user_name', { user_id: checklist.created_by })
 
@@ -80,6 +75,7 @@ export const checklistService = {
     }
   },
 
+  // Criar checklist com itens
   async createChecklist(checklistData, items) {
     try {
       console.log('📝 Criando checklist:', checklistData)
@@ -112,27 +108,104 @@ export const checklistService = {
         observation: item.observation || null,
       }))
 
-      console.log('📤 Inserindo itens:', itemsToInsert)
-
       const { error: itemsError } = await supabase
         .from('checklist_items')
         .insert(itemsToInsert)
 
       if (itemsError) {
         console.error('❌ Erro ao criar itens:', itemsError)
-        // Rollback: deletar checklist se itens falharem
         await supabase.from('checklists').delete().eq('id', checklist.id)
         throw itemsError
+      }
+
+      console.log('✅ Itens criados:', itemsToInsert.length)
+
+      // 3. NOVO: Criar manutenções automáticas para itens com "precisa reparo"
+      const repairItems = items.filter(item => item.status === 'needs_repair')
+      
+      if (repairItems.length > 0) {
+        console.log('🔧 Criando manutenções automáticas para itens com reparo:', repairItems.length)
+        
+        // Buscar informações do veículo
+        const { data: vehicle } = await supabase
+          .from('vehicles')
+          .select('plate, brand, model, mileage')
+          .eq('id', checklistData.vehicle_id)
+          .single()
+
+        const maintenanceOrders = []
+
+        // Criar uma ordem de manutenção para cada item com problema
+        for (const item of repairItems) {
+          const fullDescription = [
+            `🚨 VEÍCULO PRECISA DE REPARO - ITEM DO CHECKLIST`,
+            ``,
+            `Veículo: ${vehicle?.plate} - ${vehicle?.brand} ${vehicle?.model}`,
+            `Item identificado: ${item.item_name}`,
+            `Observação do inspetor: ${item.observation || 'Necessita reparo'}`,
+            ``,
+            `⚠️ AVISO: Levar o veículo à oficina para reparo imediato!`,
+            ``,
+            `Checklist realizado em: ${new Date().toLocaleDateString('pt-BR')}`,
+            `Checklist ID: #${checklist.id.substring(0, 8)}`,
+          ].join('\n')
+
+          const maintenanceOrder = {
+            company_id: checklistData.company_id,
+            vehicle_id: checklistData.vehicle_id,
+            type: 'corrective',
+            status: 'pending',
+            description: fullDescription,
+            services_performed: null,
+            workshop: null,
+            cost: 0,
+            mileage: vehicle?.mileage || null,
+            entry_date: new Date().toISOString().split('T')[0],
+            expected_exit_date: null,
+            notes: `Gerado automaticamente pelo checklist #${checklist.id.substring(0, 8)} - Item: ${item.item_name}`,
+          }
+
+          const { data: order, error: maintenanceError } = await supabase
+            .from('maintenance_orders')
+            .insert(maintenanceOrder)
+            .select()
+            .single()
+
+          if (maintenanceError) {
+            console.error('❌ Erro ao criar manutenção para:', item.item_name, maintenanceError)
+          } else {
+            console.log('✅ Manutenção criada:', order?.id)
+            maintenanceOrders.push(order)
+          }
+        }
+
+        // Atualizar status do veículo para "maintenance"
+        const { error: vehicleUpdateError } = await supabase
+          .from('vehicles')
+          .update({ 
+            status: 'maintenance', 
+            updated_at: new Date().toISOString() 
+          })
+          .eq('id', checklistData.vehicle_id)
+
+        if (vehicleUpdateError) {
+          console.error('❌ Erro ao atualizar status do veículo:', vehicleUpdateError)
+        } else {
+          console.log('🔧 Veículo marcado como "Em Manutenção"')
+        }
+
+        console.log(`✅ ${maintenanceOrders.length} ordens de manutenção criadas`)
       }
 
       console.log('✅ Checklist salvo com sucesso!')
       return { data: checklist, error: null }
     } catch (error) {
-      console.error('❌ Erro:', error.message || error)
+      console.error('❌ Erro ao criar checklist:', error.message || error)
       return { data: null, error: error }
     }
   },
 
+  // Excluir checklist
   async deleteChecklist(id) {
     try {
       const { error } = await supabase
@@ -143,7 +216,27 @@ export const checklistService = {
       if (error) throw error
       return { error: null }
     } catch (error) {
+      console.error('Erro ao excluir checklist:', error)
       return { error }
+    }
+  },
+
+  // Buscar último checklist do veículo
+  async getLastVehicleChecklist(vehicleId) {
+    try {
+      const { data, error } = await supabase
+        .from('checklists')
+        .select(`*, items:checklist_items(*)`)
+        .eq('vehicle_id', vehicleId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+
+      return { data, error: null }
+    } catch (error) {
+      return { data: null, error }
     }
   },
 }

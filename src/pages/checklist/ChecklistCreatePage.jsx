@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { checklistService } from '@/services/checklistService'
 import { vehicleService } from '@/services/vehicleService'
@@ -47,30 +47,30 @@ const statusOptions = [
     label: 'OK', 
     icon: CheckCircle2, 
     color: 'bg-green-500/10 text-green-600 border-green-500/30 hover:bg-green-500/20',
-    activeColor: 'bg-green-500 text-white border-green-500'
+    activeColor: 'bg-green-500 text-white border-green-500 shadow-lg'
   },
   { 
     value: 'attention', 
     label: 'Atenção', 
     icon: AlertTriangle, 
     color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30 hover:bg-yellow-500/20',
-    activeColor: 'bg-yellow-500 text-white border-yellow-500'
+    activeColor: 'bg-yellow-500 text-white border-yellow-500 shadow-lg'
   },
   { 
     value: 'needs_repair', 
     label: 'Precisa Reparo', 
     icon: XCircle, 
     color: 'bg-red-500/10 text-red-600 border-red-500/30 hover:bg-red-500/20',
-    activeColor: 'bg-red-500 text-white border-red-500'
+    activeColor: 'bg-red-500 text-white border-red-500 shadow-lg'
   },
 ]
 
 export default function ChecklistCreatePage() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
-  const queryClient = useQueryClient()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
   const [vehicleId, setVehicleId] = useState('')
   const [observations, setObservations] = useState('')
   const [items, setItems] = useState(
@@ -91,7 +91,6 @@ export default function ChecklistCreatePage() {
     enabled: !!profile?.company?.id,
   })
 
-  // Filtrar apenas veículos ativos
   const activeVehicles = vehicles.filter(v => v.status === 'active')
 
   const updateItemStatus = (index, status) => {
@@ -137,8 +136,11 @@ export default function ChecklistCreatePage() {
 
       if (submitError) throw submitError
 
-      queryClient.invalidateQueries({ queryKey: ['checklists'] })
-      navigate('/checklist')
+      setSuccess(true)
+      
+      setTimeout(() => {
+        navigate('/checklist')
+      }, 2000)
     } catch (err) {
       setError(err.message || 'Erro ao salvar checklist')
     } finally {
@@ -146,10 +148,35 @@ export default function ChecklistCreatePage() {
     }
   }
 
-  // Contadores
   const okCount = items.filter(i => i.status === 'ok').length
   const attentionCount = items.filter(i => i.status === 'attention').length
   const repairCount = items.filter(i => i.status === 'needs_repair').length
+
+  if (success) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Card className="max-w-md text-center p-8">
+          <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Checklist Salvo!
+          </h2>
+          <p className="text-gray-500 mb-4">
+            {repairCount > 0 
+              ? `${repairCount} ordem(ns) de manutenção foi(ram) criada(s) automaticamente.` 
+              : 'Tudo OK com o veículo!'}
+          </p>
+          {repairCount > 0 && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800 mb-4">
+              <p className="text-red-600 dark:text-red-400 font-medium text-sm">
+                🚗 Levar veículo à oficina para reparo!
+              </p>
+            </div>
+          )}
+          <p className="text-sm text-gray-400">Redirecionando...</p>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="animate-fadeIn">
@@ -199,27 +226,42 @@ export default function ChecklistCreatePage() {
                   )}
                 </SelectContent>
               </Select>
-              {vehicleId && (
-                <p className="text-sm text-gray-500">
-                  ✅ Veículo selecionado: {vehicles.find(v => v.id === vehicleId)?.plate}
-                </p>
-              )}
             </div>
+
+            {/* Alerta de reparo */}
+            {repairCount > 0 && (
+              <div className="p-4 rounded-lg bg-red-500/5 border-2 border-red-500/30 flex items-start gap-3 animate-fadeIn">
+                <Wrench className="w-6 h-6 text-red-500 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-red-600 dark:text-red-400">
+                    ⚠️ Atenção: {repairCount} item(ns) precisa(m) de reparo!
+                  </p>
+                  <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+                    Ao finalizar, uma ordem de manutenção será criada automaticamente.
+                  </p>
+                  <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 rounded border border-red-200 dark:border-red-800">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-300">
+                      🚗 Levar o veículo à oficina para reparo!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Resumo rápido */}
             {vehicleId && (
-              <div className="grid grid-cols-3 gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="grid grid-cols-3 gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-500">{okCount}</p>
-                  <p className="text-xs text-gray-500">OK</p>
+                  <p className="text-xs text-gray-500">✅ OK</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-yellow-500">{attentionCount}</p>
-                  <p className="text-xs text-gray-500">Atenção</p>
+                  <p className="text-xs text-gray-500">⚠️ Atenção</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-red-500">{repairCount}</p>
-                  <p className="text-xs text-gray-500">Reparo</p>
+                  <p className="text-xs text-gray-500">🔴 Reparo</p>
                 </div>
               </div>
             )}
@@ -240,12 +282,24 @@ export default function ChecklistCreatePage() {
                     <div
                       key={index}
                       className={`p-4 rounded-lg border transition-all ${
-                        vehicleId ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' : 'bg-gray-100 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 opacity-60'
+                        vehicleId 
+                          ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700' 
+                          : 'bg-gray-100 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700 opacity-60'
+                      } ${
+                        item.status === 'needs_repair' 
+                          ? 'border-l-4 border-l-red-500' 
+                          : item.status === 'attention'
+                          ? 'border-l-4 border-l-yellow-500'
+                          : ''
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <ItemIcon className="w-5 h-5 text-gray-500" />
+                          <ItemIcon className={`w-5 h-5 ${
+                            item.status === 'needs_repair' ? 'text-red-500' :
+                            item.status === 'attention' ? 'text-yellow-500' :
+                            'text-gray-500'
+                          }`} />
                           <div>
                             <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
                               {item.item_name}
@@ -256,7 +310,6 @@ export default function ChecklistCreatePage() {
                           </div>
                         </div>
 
-                        {/* Status buttons */}
                         <div className="flex items-center gap-1">
                           {statusOptions.map((status) => (
                             <button
@@ -266,9 +319,9 @@ export default function ChecklistCreatePage() {
                               disabled={!vehicleId}
                               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                                 item.status === status.value
-                                  ? status.activeColor + ' shadow-lg'
+                                  ? status.activeColor
                                   : status.color
-                              } ${!vehicleId ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              } ${!vehicleId ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                             >
                               {item.status === status.value && <status.icon className="w-3 h-3 inline mr-1" />}
                               {status.label}
@@ -277,7 +330,6 @@ export default function ChecklistCreatePage() {
                         </div>
                       </div>
 
-                      {/* Campo de observação por item */}
                       {item.status !== 'ok' && (
                         <div className="mt-2">
                           <input
@@ -286,7 +338,11 @@ export default function ChecklistCreatePage() {
                             value={item.observation}
                             onChange={(e) => updateItemObservation(index, e.target.value)}
                             disabled={!vehicleId}
-                            className="w-full text-xs px-3 py-1.5 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                            className={`w-full text-xs px-3 py-1.5 rounded border bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 ${
+                              item.status === 'needs_repair' 
+                                ? 'border-red-300 dark:border-red-700 focus:border-red-500' 
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}
                           />
                         </div>
                       )}
@@ -297,9 +353,9 @@ export default function ChecklistCreatePage() {
             </div>
 
             {/* Status geral */}
-            <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between">
+            <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Status Geral da Inspeção:
+                Status Geral:
               </span>
               <Badge 
                 variant={
@@ -307,7 +363,7 @@ export default function ChecklistCreatePage() {
                   calculateOverallStatus() === 'attention' ? 'warning' : 
                   'destructive'
                 }
-                className="text-base px-4 py-1.5"
+                className="text-sm px-4 py-1.5"
               >
                 {calculateOverallStatus() === 'ok' ? '✅ Tudo OK' :
                  calculateOverallStatus() === 'attention' ? '⚠️ Atenção Necessária' :
@@ -324,7 +380,7 @@ export default function ChecklistCreatePage() {
                 rows={3}
                 disabled={!vehicleId}
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm disabled:opacity-50"
-                placeholder="Adicione observações sobre a inspeção geral do veículo..."
+                placeholder="Adicione observações sobre a inspeção geral..."
               />
             </div>
 
@@ -348,7 +404,7 @@ export default function ChecklistCreatePage() {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Salvando Checklist...
+                    Salvando...
                   </>
                 ) : (
                   <>

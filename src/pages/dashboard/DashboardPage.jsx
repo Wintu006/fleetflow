@@ -6,6 +6,7 @@ import { checklistService } from '@/services/checklistService'
 import { StatCard } from '@/components/shared/StatCard'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { formatMileage, formatCurrency } from '@/utils/format'
 import {
@@ -18,6 +19,7 @@ import {
   CheckCircle2,
   Clock,
   Activity,
+  ArrowRight,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -46,7 +48,7 @@ export default function DashboardPage() {
     enabled: !!companyId,
   })
 
-  // Buscar todos os veículos para listar
+  // Buscar veículos
   const { data: vehicles = [] } = useQuery({
     queryKey: ['vehicles', companyId, 'dashboard'],
     queryFn: async () => {
@@ -76,10 +78,19 @@ export default function DashboardPage() {
     enabled: !!companyId,
   })
 
-  // Calcular status dos checklists de hoje
+  // Checklists de hoje
   const today = new Date().toDateString()
   const todayChecklists = checklists.filter(c => 
     new Date(c.created_at).toDateString() === today
+  )
+
+  // Manutenções pendentes (incluindo as geradas pelo checklist)
+  const pendingMaintenance = recentMaintenance.filter(m => 
+    m.status === 'pending' || m.status === 'in_progress'
+  )
+  
+  const checklistMaintenance = pendingMaintenance.filter(m => 
+    m.description?.includes('[CHECKLIST]')
   )
 
   // Métricas
@@ -97,7 +108,7 @@ export default function DashboardPage() {
       value: maintenanceStats?.inProgress || 0,
       description: `${maintenanceStats?.pending || 0} pendentes`,
       icon: Wrench,
-      color: 'yellow',
+      color: maintenanceStats?.pending > 0 ? 'red' : 'yellow',
       loading: maintenanceLoading,
       onClick: () => navigate('/maintenance'),
     },
@@ -138,7 +149,6 @@ export default function DashboardPage() {
     },
   ]
 
-  // Status dos veículos
   const statusCounts = {
     active: vehicles.filter(v => v.status === 'active').length,
     maintenance: vehicles.filter(v => v.status === 'maintenance').length,
@@ -162,6 +172,39 @@ export default function DashboardPage() {
           Sistema Online
         </Badge>
       </div>
+
+      {/* ALERTA: Manutenções pendentes do checklist */}
+      {checklistMaintenance.length > 0 && (
+        <div className="p-4 rounded-xl bg-red-500/5 border-2 border-red-500/30 flex items-center gap-4 animate-fadeIn">
+          <div className="p-3 bg-red-500/20 rounded-full">
+            <AlertTriangle className="w-6 h-6 text-red-500" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-red-600 dark:text-red-400">
+              🚨 {checklistMaintenance.length} veículo(s) precisa(m) de reparo!
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              Itens do checklist foram marcados como "Precisa Reparo". 
+              Ordens de manutenção foram criadas automaticamente.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {checklistMaintenance.map((m) => (
+                <Badge key={m.id} variant="destructive" className="text-xs">
+                  🚗 {m.vehicle?.plate} - Levar à oficina
+                </Badge>
+              ))}
+            </div>
+          </div>
+          <Button 
+            onClick={() => navigate('/maintenance')} 
+            variant="outline"
+            className="border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
+          >
+            Ver Manutenções
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </div>
+      )}
 
       {/* Grid de Métricas */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -224,7 +267,6 @@ export default function DashboardPage() {
                   </div>
                 ))}
 
-                {/* Veículos recentes */}
                 <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-800">
                   <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Veículos Recentes
@@ -237,16 +279,10 @@ export default function DashboardPage() {
                         className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors"
                       >
                         <div>
-                          <p className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                            {v.plate}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {v.brand} {v.model} ({v.year})
-                          </p>
+                          <p className="font-medium text-sm">{v.plate}</p>
+                          <p className="text-xs text-gray-500">{v.brand} {v.model} ({v.year})</p>
                         </div>
-                        <span className="text-xs text-gray-500">
-                          {formatMileage(v.mileage)}
-                        </span>
+                        <span className="text-xs text-gray-500">{formatMileage(v.mileage)}</span>
                       </div>
                     ))}
                   </div>
@@ -256,15 +292,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Manutenções e Checklists */}
+        {/* Sidebar direita */}
         <div className="space-y-6">
           {/* Manutenções Pendentes */}
           <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-            <CardHeader
-              className="cursor-pointer"
-              onClick={() => navigate('/maintenance')}
-            >
-              <CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2 text-base">
+            <CardHeader className="cursor-pointer" onClick={() => navigate('/maintenance')}>
+              <CardTitle className="flex items-center gap-2 text-base">
                 <AlertTriangle className="w-4 h-4 text-yellow-500" />
                 Manutenções Pendentes
               </CardTitle>
@@ -272,29 +305,38 @@ export default function DashboardPage() {
             <CardContent>
               {maintenanceLoading ? (
                 <LoadingSpinner size="sm" className="py-4" />
-              ) : recentMaintenance.filter(m => m.status !== 'completed').length === 0 ? (
+              ) : pendingMaintenance.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                   ✅ Nenhuma manutenção pendente
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {recentMaintenance
-                    .filter(m => m.status !== 'completed')
-                    .slice(0, 3)
-                    .map((m) => (
-                      <div
-                        key={m.id}
-                        onClick={() => navigate(`/maintenance/${m.id}/edit`)}
-                        className="p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-950/30 transition-colors"
-                      >
-                        <p className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                          {m.vehicle?.plate}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {m.description?.substring(0, 60)}...
-                        </p>
+                  {pendingMaintenance.slice(0, 4).map((m) => (
+                    <div
+                      key={m.id}
+                      onClick={() => navigate(`/maintenance/${m.id}/edit`)}
+                      className={`p-3 rounded-lg cursor-pointer hover:shadow transition-all ${
+                        m.description?.includes('[CHECKLIST]')
+                          ? 'bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800'
+                          : 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-medium text-sm">{m.vehicle?.plate}</p>
+                        {m.description?.includes('[CHECKLIST]') && (
+                          <Badge variant="destructive" className="text-xs">📋 Checklist</Badge>
+                        )}
                       </div>
-                    ))}
+                      <p className="text-xs text-gray-500 truncate">
+                        {m.description?.replace('[CHECKLIST]', '').substring(0, 60)}...
+                      </p>
+                      {m.description?.includes('[CHECKLIST]') && (
+                        <p className="text-xs text-red-500 font-medium mt-1">
+                          🚗 Levar à oficina!
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -302,11 +344,8 @@ export default function DashboardPage() {
 
           {/* Checklists de Hoje */}
           <Card className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-            <CardHeader
-              className="cursor-pointer"
-              onClick={() => navigate('/checklist')}
-            >
-              <CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2 text-base">
+            <CardHeader className="cursor-pointer" onClick={() => navigate('/checklist')}>
+              <CardTitle className="flex items-center gap-2 text-base">
                 <ClipboardCheck className="w-4 h-4 text-fleet-500" />
                 Checklists de Hoje
               </CardTitle>
@@ -326,14 +365,9 @@ export default function DashboardPage() {
               ) : (
                 <div className="space-y-2">
                   {todayChecklists.map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800"
-                    >
+                    <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-800">
                       <div>
-                        <p className="font-medium text-sm text-gray-900 dark:text-gray-100">
-                          {c.vehicle?.plate}
-                        </p>
+                        <p className="font-medium text-sm">{c.vehicle?.plate}</p>
                         <p className="text-xs text-gray-500">
                           {c.items?.filter(i => i.status === 'ok').length || 0}/{c.items?.length || 0} itens OK
                         </p>
