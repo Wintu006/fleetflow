@@ -50,7 +50,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Cores personalizadas FleetFlow
         fleet: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -63,16 +62,6 @@ export default {
           800: '#075985',
           900: '#0c4a6e',
           950: '#082f49',
-        },
-        success: {
-          DEFAULT: '#10b981',
-          light: '#34d399',
-          dark: '#059669',
-        },
-        warning: {
-          DEFAULT: '#f59e0b',
-          light: '#fbbf24',
-          dark: '#d97706',
         },
       },
       borderRadius: {
@@ -93,16 +82,11 @@ export default {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        pulse: {
-          '0%, 100%': { opacity: 1 },
-          '50%': { opacity: 0.5 },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fadeIn": "fadeIn 0.5s ease-out",
-        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },

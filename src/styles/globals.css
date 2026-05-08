@@ -12,16 +12,16 @@
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 199 89% 48%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
+    --secondary: 210 20% 96%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
+    --muted: 210 20% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
+    --accent: 210 20% 96%;
     --accent-foreground: 222.2 47.4% 11.2%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214.3 20% 85%;
+    --input: 214.3 20% 85%;
     --ring: 199 89% 48%;
     --radius: 0.75rem;
   }
@@ -54,52 +54,169 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* ============================================
+   ESTILOS ESPECÍFICOS PARA TEMA LIGHT
+   ============================================ */
+.light {
+  /* Cards com borda visível */
+  .card,
+  [class*="card"] {
+    @apply border-gray-200 shadow-sm;
   }
-  
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted)) transparent;
+
+  /* Tabelas */
+  table thead tr {
+    @apply bg-gray-50 border-b-2 border-gray-200;
   }
-  
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
+
+  table tbody tr {
+    @apply border-b border-gray-100 hover:bg-gray-50/80;
   }
-  
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
+
+  /* Badges */
+  .badge-success,
+  [class*="badge"][class*="success"] {
+    @apply bg-green-50 text-green-700 border border-green-200;
   }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--muted));
-    border-radius: 20px;
+
+  .badge-warning,
+  [class*="badge"][class*="warning"] {
+    @apply bg-yellow-50 text-yellow-700 border border-yellow-200;
+  }
+
+  .badge-destructive,
+  [class*="badge"][class*="destructive"] {
+    @apply bg-red-50 text-red-700 border border-red-200;
+  }
+
+  .badge-secondary,
+  [class*="badge"][class*="secondary"] {
+    @apply bg-gray-100 text-gray-700 border border-gray-200;
+  }
+
+  .badge-outline {
+    @apply border-gray-300 text-gray-600;
+  }
+
+  /* Inputs */
+  input,
+  textarea,
+  select {
+    @apply border-gray-300 focus:border-fleet-500 focus:ring-fleet-500/20 bg-white;
+  }
+
+  /* Sidebar no tema light */
+  .sidebar-light {
+    @apply bg-white border-r border-gray-200 text-gray-700;
+  }
+
+  /* Navbar */
+  .navbar-light {
+    @apply bg-white/90 backdrop-blur border-b border-gray-200;
+  }
+
+  /* Cards de estatísticas */
+  .stat-card {
+    @apply bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all;
+  }
+
+  /* Modal */
+  .modal-content {
+    @apply bg-white border border-gray-200 shadow-xl;
+  }
+
+  /* Botões ghost */
+  .btn-ghost {
+    @apply hover:bg-gray-100 text-gray-600;
+  }
+
+  /* Separadores */
+  hr,
+  [class*="separator"] {
+    @apply border-gray-200;
+  }
+
+  /* Background de seções */
+  .section-bg {
+    @apply bg-gray-50/80;
   }
 }
 
-/* Animações personalizadas */
-@keyframes shimmer {
-  0% {
-    background-position: -200% 0;
+/* ============================================
+   ESTILOS ESPECÍFICOS PARA TEMA DARK
+   ============================================ */
+.dark {
+  .card,
+  [class*="card"] {
+    @apply border-gray-800;
   }
-  100% {
-    background-position: 200% 0;
+
+  table thead tr {
+    @apply bg-gray-800/50 border-b-2 border-gray-800;
+  }
+
+  table tbody tr {
+    @apply border-b border-gray-800/50 hover:bg-gray-800/30;
   }
 }
 
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 25%,
-    hsl(var(--muted-foreground)) 37%,
-    hsl(var(--muted)) 63%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
+/* Animações */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-in.slide-in-from-left {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+/* Scrollbar personalizada */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark .scrollbar-thin {
+  scrollbar-color: #374151 transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 20px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #374151;
 }
