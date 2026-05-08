@@ -1,39 +1,47 @@
-import { useState } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Car, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react'
+import { useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Car, Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  
-  const { signIn } = useAuth()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const from = location.state?.from?.pathname || '/dashboard'
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      await signIn(email, password)
-      navigate(from, { replace: true })
+      await signIn(email, password);
+      navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message || 'Erro ao fazer login. Verifique suas credenciais.')
+      setError(
+        err.message || "Erro ao fazer login. Verifique suas credenciais.",
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
@@ -65,7 +73,7 @@ export default function LoginPage() {
               Entre com suas credenciais para acessar o sistema
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
@@ -81,7 +89,7 @@ export default function LoginPage() {
                     placeholder="seu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 focus:border-fleet-500 focus:ring-fleet-500"
+                    className="pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-fleet-500 focus:ring-fleet-500"
                     disabled={loading}
                     required
                   />
@@ -105,7 +113,7 @@ export default function LoginPage() {
                   <Lock className="absolute left-3 top-2.5 h-5 w-5 text-gray-500" />
                   <Input
                     id="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -146,14 +154,14 @@ export default function LoginPage() {
                     Entrando...
                   </>
                 ) : (
-                  'Entrar'
+                  "Entrar"
                 )}
               </Button>
 
               {/* Link para registro */}
               <div className="text-center pt-4 border-t border-gray-800">
                 <p className="text-sm text-gray-500">
-                  Não tem uma conta?{' '}
+                  Não tem uma conta?{" "}
                   <Link
                     to="/register"
                     className="text-fleet-400 hover:text-fleet-300 font-medium transition-colors"
@@ -172,5 +180,5 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
-  )
+  );
 }
