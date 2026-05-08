@@ -6,10 +6,11 @@ import { AppRouter } from '@/routes/AppRouter'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60,
+      staleTime: 0,              // ← Dados ficam "stale" imediatamente
       retry: 1,
       refetchOnWindowFocus: true,
-      refetchOnMount: true,
+      refetchOnMount: true,      // ← Refetch sempre que o componente montar
+      refetchOnReconnect: true,  // ← Refetch quando reconectar
     },
   },
 })
